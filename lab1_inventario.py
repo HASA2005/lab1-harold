@@ -1,6 +1,7 @@
 import os
 import getpass
 import json
+import argparse
 from datetime import datetime
 
 import yaml
@@ -113,8 +114,76 @@ def parsear_routeros(salidas):
         "ruta_default": ruta_default,
     }
 
+def asegurar_loopback(conexion, numero):
+    if numero < 1 or numero > 254:
+        raise ValueError(
+            "El numero de lista debe estar entre 1 y 254"
+        )
 
-def conectar_equipo(equipo):
+    interfaz = f"lo-ssh-{numero}"
+    direccion_ip = f"10.253.0.{numero}/32"
+    comentario = "Harold Saborio - Lab1"
+
+    cambios = []
+
+    salida_bridge = conexion.send_command(
+        f"/interface bridge print terse where name={interfaz}"
+    )
+
+    if not salida_bridge.strip():
+        conexion.send_command(
+            f'/interface bridge add '
+            f'name={interfaz} '
+            f'comment="{comentario}"'
+        )
+
+        cambios.append("bridge creado")
+
+    salida_ip = conexion.send_command(
+        f"/ip address print terse where interface={interfaz}"
+    )
+
+    if f"address={direccion_ip}" not in salida_ip:
+        conexion.send_command(
+            f'/ip address add '
+            f'address={direccion_ip} '
+            f'interface={interfaz} '
+            f'comment="{comentario}"'
+        )
+
+        cambios.append("IP agregada")
+
+    verificar_bridge = conexion.send_command(
+        f"/interface bridge print terse where name={interfaz}"
+    )
+
+    verificar_ip = conexion.send_command(
+        f"/ip address print terse where interface={interfaz}"
+    )
+
+    verificado = (
+        bool(verificar_bridge.strip())
+        and f"address={direccion_ip}" in verificar_ip
+    )
+
+    if cambios:
+        print(
+            f"[CAMBIO] {interfaz}: "
+            + ", ".join(cambios)
+        )
+    else:
+        print(
+            f"[SIN CAMBIOS] {interfaz} ya existe correctamente"
+        )
+
+    return {
+        "interfaz": interfaz,
+        "ip": direccion_ip,
+        "cambios": cambios,
+        "verificado": verificado,
+    }
+
+def conectar_equipo(equipo, numero=None):
     nombre = equipo["nombre"]
 
     password = obtener_password(nombre)
@@ -137,6 +206,19 @@ def conectar_equipo(equipo):
         with ConnectHandler(**dispositivo) as conexion:
             print(f"[OK] Conectado a {nombre}")
 
+
+            configuracion = None
+
+
+            if (
+                equipo.get("rol") == "escritura"
+                and numero is not None
+            ):
+                configuracion = asegurar_loopback(
+                    conexion,
+                    numero
+                )
+
             comandos = COMANDOS[
                 equipo["device_type"]
             ]
@@ -156,6 +238,7 @@ def conectar_equipo(equipo):
                 "fecha_hora": fecha_hora,
                 "estado": "ok",
                 "datos": datos,
+        "configuracion": configuracion,
             }
 
     except NetmikoTimeoutException:
@@ -170,6 +253,7 @@ def conectar_equipo(equipo):
             "fecha_hora": fecha_hora,
             "estado": mensaje,
             "datos": {},
+        "configuracion": configuracion,
         }
 
     except NetmikoAuthenticationException:
@@ -184,6 +268,7 @@ def conectar_equipo(equipo):
             "fecha_hora": fecha_hora,
             "estado": mensaje,
             "datos": {},
+        "configuracion": configuracion,
         }
 
     except Exception as error:
@@ -199,6 +284,7 @@ def conectar_equipo(equipo):
             "fecha_hora": fecha_hora,
             "estado": mensaje,
             "datos": {},
+        "configuracion": configuracion,
         }
 
 
@@ -236,11 +322,28 @@ def mostrar_resumen(resultados):
     print("-" * 85)
 
 def main():
+    parser = argparse.ArgumentParser(
+        description="Laboratorio 1 - Netmiko"
+    )
+
+    parser.add_argument(
+        "-n",
+        "--numero",
+        type=int,
+        help="Numero de lista N para R6"
+    )
+
+    args = parser.parse_args()
+
     equipos = cargar_inventario()
     resultados = []
 
     for equipo in equipos:
-        resultado = conectar_equipo(equipo)
+        resultado = conectar_equipo(
+            equipo,
+            args.numero
+        )
+
         resultados.append(resultado)
 
     with open(
@@ -260,7 +363,6 @@ def main():
     )
 
     mostrar_resumen(resultados)
-
 
 
 if __name__ == "__main__":
