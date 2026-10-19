@@ -8,6 +8,14 @@ from netmiko.exceptions import (
     NetmikoAuthenticationException
 )
 
+COMANDOS = {
+    "mikrotik_routeros": {
+        "identidad": "/system identity print",
+        "recursos": "/system resource print",
+        "interfaces": "/ip address print terse",
+        "ruta_default": "/ip route print terse where dst-address=0.0.0.0/0",
+    }
+}
 
 def cargar_inventario():
     with open("inventario.yaml", "r", encoding="utf-8") as archivo:
