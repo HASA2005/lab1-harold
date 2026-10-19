@@ -120,11 +120,16 @@ def conectar_equipo(equipo):
         with ConnectHandler(**dispositivo) as conexion:
             print(f"[OK] Conectado a {nombre}")
 
-            salida = conexion.send_command(
-                "/system identity print"
-            )
+            comandos = COMANDOS[equipo["device_type"]]
 
-            print(salida)
+            salidas = {}
+
+            for clave, comando in comandos.items():
+                salidas[clave] = conexion.send_command(comando)
+
+            datos = parsear_routeros(salidas)
+
+            print(datos)
 
     except NetmikoTimeoutException:
         print(f"[ERROR] Timeout al conectar con {nombre}")
