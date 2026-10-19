@@ -1,5 +1,6 @@
 import os
 import getpass
+import json
 from datetime import datetime
 
 import yaml
@@ -209,7 +210,21 @@ def main():
         resultado = conectar_equipo(equipo)
         resultados.append(resultado)
 
-    print(resultados)
+    with open(
+        "reporte_estado.json",
+        "w",
+        encoding="utf-8"
+    ) as archivo:
+        json.dump(
+            resultados,
+            archivo,
+            indent=4,
+            ensure_ascii=False
+        )
+
+    print(
+        "\nReporte generado: reporte_estado.json"
+    )
 
 
 if __name__ == "__main__":
