@@ -183,7 +183,48 @@ def asegurar_loopback(conexion, numero):
         "verificado": verificado,
     }
 
-def conectar_equipo(equipo, numero=None):
+def limpiar_loopback(conexion, numero):
+    if numero < 1 or numero > 254:
+        raise ValueError(
+            "El numero de lista debe estar entre 1 y 254"
+        )
+
+    interfaz = f"lo-ssh-{numero}"
+
+    salida_ip = conexion.send_command(
+        f"/ip address print terse where interface={interfaz}"
+    )
+
+    if salida_ip.strip():
+        conexion.send_command(
+            f"/ip address remove [find interface={interfaz}]"
+        )
+        print(
+            f"[LIMPIAR] IP eliminada de {interfaz}"
+        )
+
+    salida_bridge = conexion.send_command(
+        f"/interface bridge print terse where name={interfaz}"
+    )
+
+    if salida_bridge.strip():
+        conexion.send_command(
+            f"/interface bridge remove [find name={interfaz}]"
+        )
+        print(
+            f"[LIMPIAR] Bridge {interfaz} eliminado"
+        )
+    else:
+        print(
+            f"[LIMPIAR] {interfaz} no existe"
+        )
+
+    return {
+        "interfaz": interfaz,
+        "limpiado": True,
+    }
+
+def conectar_equipo(equipo, numero=None, limpiar=False):
     nombre = equipo["nombre"]
 
     password = obtener_password(nombre)
@@ -206,18 +247,22 @@ def conectar_equipo(equipo, numero=None):
         with ConnectHandler(**dispositivo) as conexion:
             print(f"[OK] Conectado a {nombre}")
 
-
             configuracion = None
-
 
             if (
                 equipo.get("rol") == "escritura"
                 and numero is not None
             ):
-                configuracion = asegurar_loopback(
-                    conexion,
-                    numero
-                )
+                if limpiar:
+                    configuracion = limpiar_loopback(
+                        conexion,
+                        numero
+                    )
+                else:
+                    configuracion = asegurar_loopback(
+                        conexion,
+                        numero
+                    )
 
             comandos = COMANDOS[
                 equipo["device_type"]
@@ -333,6 +378,12 @@ def main():
         help="Numero de lista N para R6"
     )
 
+    parser.add_argument(
+        "--limpiar",
+        action="store_true",
+        help="Elimina solo los objetos creados por este estudiante"
+    )
+
     args = parser.parse_args()
 
     equipos = cargar_inventario()
@@ -341,7 +392,8 @@ def main():
     for equipo in equipos:
         resultado = conectar_equipo(
             equipo,
-            args.numero
+            args.numero,
+            args.limpiar
         )
 
         resultados.append(resultado)
