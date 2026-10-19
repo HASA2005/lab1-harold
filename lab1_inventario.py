@@ -202,6 +202,39 @@ def conectar_equipo(equipo):
         }
 
 
+def mostrar_resumen(resultados):
+    print("\nRESUMEN DE ESTADO")
+    print("-" * 85)
+
+    print(
+        f"{'Equipo':<15}"
+        f"{'IP':<18}"
+        f"{'Estado':<25}"
+        f"{'Interfaces':<12}"
+        f"{'Gateway':<15}"
+    )
+
+    print("-" * 85)
+
+    for resultado in resultados:
+        datos = resultado.get("datos", {})
+
+        interfaces = datos.get("interfaces", [])
+        cantidad_interfaces = len(interfaces)
+
+        ruta_default = datos.get("ruta_default", {})
+        gateway = ruta_default.get("gateway") or "-"
+
+        print(
+            f"{resultado['equipo']:<15}"
+            f"{resultado['ip']:<18}"
+            f"{resultado['estado']:<25}"
+            f"{cantidad_interfaces:<12}"
+            f"{gateway:<15}"
+        )
+
+    print("-" * 85)
+
 def main():
     equipos = cargar_inventario()
     resultados = []
@@ -225,6 +258,9 @@ def main():
     print(
         "\nReporte generado: reporte_estado.json"
     )
+
+    mostrar_resumen(resultados)
+
 
 
 if __name__ == "__main__":
