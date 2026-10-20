@@ -231,6 +231,8 @@ def conectar_equipo(equipo, numero=None, limpiar=False):
 
     os.makedirs("logs", exist_ok=True)
 
+    configuracion = None
+
     dispositivo = {
         "device_type": equipo["device_type"],
         "host": equipo["host"],
@@ -246,8 +248,6 @@ def conectar_equipo(equipo, numero=None, limpiar=False):
     try:
         with ConnectHandler(**dispositivo) as conexion:
             print(f"[OK] Conectado a {nombre}")
-
-            configuracion = None
 
             if (
                 equipo.get("rol") == "escritura"
